@@ -21,9 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useWorkspace } from "@/lib/hooks/useWorkspaces";
+
+// Correctly importing useBoard from your useBoards hook
+import { useBoard } from '@/lib/hooks/useBoards';
 import { useKanbanDnD } from "@/lib/hooks/useKanbanDnD";
-import { SprintPhaseWithTickets, Ticket } from "@/types";
+
+// Importing the correct types. Renaming Card to CardModel to avoid clashing with Shadcn Card
+import { ListWithCards, Card as CardModel } from "@/types";
+
 import { MoreHorizontal, Plus, User, CheckSquare, Clock } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -40,51 +45,49 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-function DroppablePhase({
-  phase,
+function DroppableList({
+  list,
   children,
-  onCreateTicket,
-  onEditPhase,
+  onCreateCard,
+  onEditList,
 }: {
-  phase: SprintPhaseWithTickets;
+  list: ListWithCards;
   children: React.ReactNode;
-  onCreateTicket: (ticketData: {
-    phaseId: string;
+  onCreateCard: (cardData: {
+    listId: string;
     title: string;
     description?: string;
     assignee?: string;
     dueDate?: string;
     priority: "low" | "medium" | "high";
   }) => Promise<void>;
-  onEditPhase: (phase: SprintPhaseWithTickets) => void;
+  onEditList: (list: ListWithCards) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: phase.id });
+  const { setNodeRef, isOver } = useDroppable({ id: list.id });
   return (
     <div
       ref={setNodeRef}
-      className={`w-full lg:flex-shrink-0 lg:w-80 ${
-        isOver ? "bg-slate-200 rounded-lg" : ""
-      }`}
+      className={`w-full lg:flex-shrink-0 lg:w-80 ${isOver ? "bg-slate-200 rounded-lg" : ""
+        }`}
     >
       <div
-        className={`bg-slate-100/80 rounded-lg shadow-sm border border-slate-200 ${
-          isOver ? "ring-2 ring-blue-400 ring-opacity-50" : ""
-        }`}
+        className={`bg-slate-100/80 rounded-lg shadow-sm border border-slate-200 ${isOver ? "ring-2 ring-blue-400 ring-opacity-50" : ""
+          }`}
       >
         <div className="p-3 sm:p-4 border-b border-slate-200/60 pb-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base truncate pl-1">
-              {phase.title}
+              {list.title}
             </h3>
             <div className="flex items-center space-x-1">
               <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-600">
-                {phase.tickets.length}
+                {list.cards.length}
               </Badge>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 w-8 p-0 text-slate-500 hover:text-slate-800"
-                onClick={() => onEditPhase(phase)}
+                onClick={() => onEditList(list)}
               >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
@@ -107,14 +110,14 @@ function DroppablePhase({
             <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
               <DialogHeader>
                 <DialogTitle>Create New Card</DialogTitle>
-                <p className="text-sm text-gray-600">Add a card to {phase.title}</p>
+                <p className="text-sm text-gray-600">Add a card to {list.title}</p>
               </DialogHeader>
 
               <form className="space-y-4" onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
-                onCreateTicket({
-                  phaseId: phase.id,
+                onCreateCard({
+                  listId: list.id,
                   title: formData.get("title") as string,
                   description: formData.get("description") as string || undefined,
                   assignee: formData.get("assignee") as string || undefined,
@@ -172,19 +175,19 @@ function getPriorityColor(priority: "low" | "medium" | "high"): string {
   }
 }
 
-function CardContentUI({ ticket }: { ticket: Ticket }) {
-  const totalItems = ticket.checklists?.reduce((acc, cl) => acc + (cl.items?.length || 0), 0) || 0;
-  const completedItems = ticket.checklists?.reduce((acc, cl) => 
-    acc + (cl.items?.filter(item => item.is_completed).length || 0)
-  , 0) || 0;
+function CardContentUI({ card }: { card: any }) {
+  const totalItems = card.checklists?.reduce((acc: number, cl: any) => acc + (cl.items?.length || 0), 0) || 0;
+  const completedItems = card.checklists?.reduce((acc: number, cl: any) =>
+    acc + (cl.items?.filter((item: any) => item.is_completed).length || 0)
+    , 0) || 0;
 
-  const hasDueDateText = ticket.due_date ? new Date(ticket.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+  const hasDueDateText = card.due_date ? new Date(card.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
 
   return (
     <div className="p-3 sm:p-3.5 space-y-2">
-      {ticket.labels && ticket.labels.length > 0 && (
+      {card.labels && card.labels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1">
-          {ticket.labels.map((label, idx) => (
+          {card.labels.map((label: string, idx: number) => (
             <Badge key={idx} className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none px-2 py-0 h-5 text-[10px] font-semibold">
               {label}
             </Badge>
@@ -194,14 +197,14 @@ function CardContentUI({ ticket }: { ticket: Ticket }) {
 
       <div className="flex items-start justify-between gap-2">
         <h4 className="font-medium text-slate-800 text-sm leading-tight break-words">
-          {ticket.title}
+          {card.title}
         </h4>
-        <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${getPriorityColor(ticket.priority)}`} />
+        <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${getPriorityColor(card.priority)}`} />
       </div>
 
-      {ticket.description && (
+      {card.description && (
         <p className="text-xs text-slate-500 line-clamp-2">
-          {ticket.description}
+          {card.description}
         </p>
       )}
 
@@ -212,7 +215,7 @@ function CardContentUI({ ticket }: { ticket: Ticket }) {
             <span className="font-medium">{hasDueDateText}</span>
           </div>
         )}
-        
+
         {totalItems > 0 && (
           <div className={`flex items-center gap-1 ${completedItems === totalItems ? 'text-green-600 bg-green-50' : 'text-slate-600 bg-slate-100'} px-1.5 py-0.5 rounded`}>
             <CheckSquare className="h-3 w-3" />
@@ -222,10 +225,10 @@ function CardContentUI({ ticket }: { ticket: Ticket }) {
 
         <div className="flex-1" />
 
-        {ticket.assignee && (
+        {card.assignee && (
           <div className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
             <User className="h-3 w-3" />
-            <span className="truncate max-w-[80px]">{ticket.assignee}</span>
+            <span className="truncate max-w-[80px]">{card.assignee}</span>
           </div>
         )}
       </div>
@@ -233,7 +236,7 @@ function CardContentUI({ ticket }: { ticket: Ticket }) {
   );
 }
 
-function SortableCard({ ticket }: { ticket: Ticket }) {
+function SortableCard({ card }: { card: CardModel }) {
   const {
     attributes,
     listeners,
@@ -241,7 +244,7 @@ function SortableCard({ ticket }: { ticket: Ticket }) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: ticket.id });
+  } = useSortable({ id: card.id });
 
   const styles = {
     transform: CSS.Transform.toString(transform),
@@ -252,32 +255,34 @@ function SortableCard({ ticket }: { ticket: Ticket }) {
   return (
     <div ref={setNodeRef} style={styles} {...listeners} {...attributes}>
       <Card className="cursor-pointer hover:ring-2 hover:ring-blue-400/50 shadow-sm border-slate-200 transition-all">
-        <CardContentUI ticket={ticket} />
+        <CardContentUI card={card} />
       </Card>
     </div>
   );
 }
 
-function CardOverlay({ ticket }: { ticket: Ticket }) {
+function CardOverlay({ card }: { card: CardModel }) {
   return (
     <Card className="cursor-grabbing shadow-xl ring-2 ring-blue-500 bg-white rotate-2 border-slate-200">
-      <CardContentUI ticket={ticket} />
+      <CardContentUI card={card} />
     </Card>
   );
 }
 
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
+
+  // Using the renamed hooks and properties to match useBoards.ts
   const {
-    workspace,
-    phases,
-    createRealTicket,
-    setPhases,
-    moveTicket,
-    createPhase,
-    updatePhase,
-    updateWorkspace
-  } = useWorkspace(id as string);
+    board,
+    lists,
+    createRealCard,
+    setLists,
+    moveCard,
+    createList,
+    updateList,
+    updateBoard
+  } = useBoard(id as string);
 
   const {
     sensors,
@@ -285,19 +290,19 @@ export default function BoardPage() {
     handleDragStart,
     handleDragOver,
     handleDragEnd,
-  } = useKanbanDnD(phases, setPhases, moveTicket);
+  } = useKanbanDnD(lists, setLists, moveCard);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newColor, setNewColor] = useState("");
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [isCreatingPhase, setIsCreatingPhase] = useState(false);
-  const [isEditingPhase, setIsEditingPhase] = useState(false);
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [isEditingList, setIsEditingList] = useState(false);
 
-  const [newPhaseTitle, setNewPhaseTitle] = useState("");
-  const [editingPhaseTitle, setEditingPhaseTitle] = useState("");
-  const [editingPhase, setEditingPhase] = useState<SprintPhaseWithTickets | null>(null);
+  const [newListTitle, setNewListTitle] = useState("");
+  const [editingListTitle, setEditingListTitle] = useState("");
+  const [editingList, setEditingList] = useState<ListWithCards | null>(null);
 
   const [filters, setFilters] = useState({
     priority: [] as string[],
@@ -313,27 +318,27 @@ export default function BoardPage() {
     setFilters({ priority: [], assignee: [], dueDate: null });
   }
 
-  async function handleUpdateWorkspace(e: React.FormEvent) {
+  async function handleUpdateBoard(e: React.FormEvent) {
     e.preventDefault();
-    if (!newTitle.trim() || !workspace) return;
+    if (!newTitle.trim() || !board) return;
     try {
-      await updateWorkspace(workspace.id, {
+      await updateBoard(board.id, {
         title: newTitle.trim(),
-        color: newColor || workspace.color,
+        color: newColor || board.color,
       });
       setIsEditingTitle(false);
-    } catch {}
+    } catch { }
   }
 
-  async function handleCreateTicket({
-    phaseId,
+  async function handleCreateCard({
+    listId,
     title,
     description,
     assignee,
     dueDate,
     priority,
   }: {
-    phaseId: string;
+    listId: string;
     title: string;
     description?: string;
     assignee?: string;
@@ -341,39 +346,39 @@ export default function BoardPage() {
     priority: "low" | "medium" | "high";
   }) {
     if (title.trim()) {
-      await createRealTicket(phaseId, { title, description, assignee, dueDate, priority });
+      await createRealCard(listId, { title, description, assignee, dueDate, priority });
     }
   }
 
-  async function handleCreatePhase(e: React.FormEvent) {
+  async function handleCreateList(e: React.FormEvent) {
     e.preventDefault();
-    if (!newPhaseTitle.trim()) return;
-    await createPhase(newPhaseTitle.trim());
-    setNewPhaseTitle("");
-    setIsCreatingPhase(false);
+    if (!newListTitle.trim()) return;
+    await createList(newListTitle.trim());
+    setNewListTitle("");
+    setIsCreatingList(false);
   }
 
-  async function handleUpdatePhase(e: React.FormEvent) {
+  async function handleUpdateList(e: React.FormEvent) {
     e.preventDefault();
-    if (!editingPhaseTitle.trim() || !editingPhase) return;
-    await updatePhase(editingPhase.id, editingPhaseTitle.trim());
-    setEditingPhaseTitle("");
-    setIsEditingPhase(false);
-    setEditingPhase(null);
+    if (!editingListTitle.trim() || !editingList) return;
+    await updateList(editingList.id, editingListTitle.trim());
+    setEditingListTitle("");
+    setIsEditingList(false);
+    setEditingList(null);
   }
 
-  function handleEditPhase(phase: SprintPhaseWithTickets) {
-    setIsEditingPhase(true);
-    setEditingPhase(phase);
-    setEditingPhaseTitle(phase.title);
+  function handleEditList(list: ListWithCards) {
+    setIsEditingList(true);
+    setEditingList(list);
+    setEditingListTitle(list.title);
   }
 
-  const filteredPhases = phases.map((phase) => ({
-    ...phase,
-    tickets: phase.tickets.filter((ticket) => {
-      if (filters.priority.length > 0 && !filters.priority.includes(ticket.priority)) return false;
-      if (filters.dueDate && ticket.due_date) {
-        const taskDate = new Date(ticket.due_date).toDateString();
+  const filteredLists = lists.map((list) => ({
+    ...list,
+    cards: list.cards.filter((card) => {
+      if (filters.priority.length > 0 && !filters.priority.includes(card.priority)) return false;
+      if (filters.dueDate && card.due_date) {
+        const taskDate = new Date(card.due_date).toDateString();
         const filterDate = new Date(filters.dueDate).toDateString();
         if (taskDate !== filterDate) return false;
       }
@@ -385,10 +390,10 @@ export default function BoardPage() {
     <>
       <div className="min-h-screen bg-blue-600/5 transition-colors">
         <Navbar
-          boardTitle={workspace?.title}
+          boardTitle={board?.title}
           onEditBoard={() => {
-            setNewTitle(workspace?.title ?? "");
-            setNewColor(workspace?.color ?? "");
+            setNewTitle(board?.title ?? "");
+            setNewColor(board?.color ?? "");
             setIsEditingTitle(true);
           }}
           onFilterClick={() => setIsFilterOpen(true)}
@@ -400,7 +405,7 @@ export default function BoardPage() {
         <Dialog open={isEditingTitle} onOpenChange={setIsEditingTitle}>
           <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
             <DialogHeader><DialogTitle>Edit Board</DialogTitle></DialogHeader>
-            <form className="space-y-4" onSubmit={handleUpdateWorkspace}>
+            <form className="space-y-4" onSubmit={handleUpdateBoard}>
               <div className="space-y-2">
                 <Label htmlFor="boardTitle">Board Title</Label>
                 <Input
@@ -471,31 +476,31 @@ export default function BoardPage() {
             onDragEnd={handleDragEnd}
           >
             <div className="flex items-start space-x-4 lg:space-x-4 h-full pb-4">
-              {filteredPhases.map((phase, key) => (
-                <DroppablePhase
+              {filteredLists.map((list, key) => (
+                <DroppableList
                   key={key}
-                  phase={phase}
-                  onCreateTicket={handleCreateTicket}
-                  onEditPhase={handleEditPhase}
+                  list={list}
+                  onCreateCard={handleCreateCard}
+                  onEditList={handleEditList}
                 >
                   <SortableContext
-                    items={phase.tickets.map((t) => t.id)}
+                    items={list.cards.map((c) => c.id)}
                     strategy={verticalListSortingStrategy}
                   >
                     <div className="space-y-2.5 min-h-[10px]">
-                      {phase.tickets.map((ticket, key) => (
-                        <SortableCard ticket={ticket} key={key} />
+                      {list.cards.map((card, key) => (
+                        <SortableCard card={card as CardModel} key={key} />
                       ))}
                     </div>
                   </SortableContext>
-                </DroppablePhase>
+                </DroppableList>
               ))}
 
               <div className="flex-shrink-0 w-80">
                 <Button
                   variant="outline"
                   className="w-full justify-start h-12 bg-white/50 border-dashed border-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
-                  onClick={() => setIsCreatingPhase(true)}
+                  onClick={() => setIsCreatingList(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add another list
@@ -503,49 +508,49 @@ export default function BoardPage() {
               </div>
 
               <DragOverlay>
-                {activeTask ? <CardOverlay ticket={activeTask} /> : null}
+                {activeTask ? <CardOverlay card={activeTask as CardModel} /> : null}
               </DragOverlay>
             </div>
           </DndContext>
         </main>
       </div>
 
-      <Dialog open={isCreatingPhase} onOpenChange={setIsCreatingPhase}>
+      <Dialog open={isCreatingList} onOpenChange={setIsCreatingList}>
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader><DialogTitle>Create New List</DialogTitle></DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreatePhase}>
+          <form className="space-y-4" onSubmit={handleCreateList}>
             <div className="space-y-2">
               <Label>List Title</Label>
               <Input
-                value={newPhaseTitle}
-                onChange={(e) => setNewPhaseTitle(e.target.value)}
+                value={newListTitle}
+                onChange={(e) => setNewListTitle(e.target.value)}
                 placeholder="Enter list title..."
                 required
               />
             </div>
             <div className="space-x-2 flex justify-end">
-              <Button type="button" onClick={() => setIsCreatingPhase(false)} variant="outline">Cancel</Button>
+              <Button type="button" onClick={() => setIsCreatingList(false)} variant="outline">Cancel</Button>
               <Button type="submit">Create List</Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditingPhase} onOpenChange={setIsEditingPhase}>
+      <Dialog open={isEditingList} onOpenChange={setIsEditingList}>
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader><DialogTitle>Edit List</DialogTitle></DialogHeader>
-          <form className="space-y-4" onSubmit={handleUpdatePhase}>
+          <form className="space-y-4" onSubmit={handleUpdateList}>
             <div className="space-y-2">
               <Label>List Title</Label>
               <Input
-                value={editingPhaseTitle}
-                onChange={(e) => setEditingPhaseTitle(e.target.value)}
+                value={editingListTitle}
+                onChange={(e) => setEditingListTitle(e.target.value)}
                 placeholder="Enter list title..."
                 required
               />
             </div>
             <div className="space-x-2 flex justify-end">
-              <Button type="button" onClick={() => { setIsEditingPhase(false); setEditingPhase(null); }} variant="outline">Cancel</Button>
+              <Button type="button" onClick={() => { setIsEditingList(false); setEditingList(null); }} variant="outline">Cancel</Button>
               <Button type="submit">Save</Button>
             </div>
           </form>

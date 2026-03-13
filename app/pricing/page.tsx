@@ -27,17 +27,46 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { useSupabase } from "@/lib/supabase/SupabaseProvider";
 
 export default function PricingPage() {
   const router = useRouter();
+  const { user } = useUser();
+  const { supabase } = useSupabase();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async () => {
+    // If the user isn't loaded yet, do nothing
+    if (!user || !supabase) return;
+
     setIsLoading(true);
-    // Simulate a network request to Stripe/Clerk Billing
-    setTimeout(() => {
+
+    try {
+      // 1. Calculate a date one month from now
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+      // 2. Insert a "Fake" Stripe subscription into your database to unlock Pro!
+      const { error } = await supabase.from('user_subscriptions').upsert({
+        user_id: user.id,
+        stripe_subscription_id: 'mock_sub_' + Date.now(),
+        stripe_customer_id: 'mock_cus_' + Date.now(),
+        stripe_price_id: 'pro_plan',
+        stripe_current_period_end: nextMonth.toISOString(),
+      });
+
+      if (error) {
+        console.error("Supabase insert error:", error);
+      }
+
+      // 3. Redirect back to the dashboard. The app will now see them as a Pro user!
       router.push('/dashboard');
-    }, 1500);
+
+    } catch (error) {
+      console.error("Failed to upgrade:", error);
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -68,11 +68,25 @@ export function PlanProvider({
   hasEnterprisePlan,
 }: PlanProviderProps) {
   return (
+    // <PlanContext.Provider
+    //   value={{
+    //     hasProPlan: true,        // Force the app to think you are Pro
+    //     hasEnterprisePlan: true, // Force Enterprise too, just in case!
+    //     isFreeUser: false,       // Turn off free tier restrictions
+    //   }}
+    // >
+    // <PlanContext.Provider
+    //   value={{
+    //     hasProPlan, // Remove the ": true"
+    //     hasEnterprisePlan, // Remove the ": true"
+    //     isFreeUser: !hasProPlan && !hasEnterprisePlan,
+    //   }}
+    // >
     <PlanContext.Provider
       value={{
-        hasProPlan: true,        // Force the app to think you are Pro
-        hasEnterprisePlan: true, // Force Enterprise too, just in case!
-        isFreeUser: false,       // Turn off free tier restrictions
+        hasProPlan,
+        hasEnterprisePlan,
+        isFreeUser: !hasProPlan && !hasEnterprisePlan,
       }}
     >
       {children}

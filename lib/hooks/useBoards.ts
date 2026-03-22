@@ -57,7 +57,26 @@ export function useBoards() {
     }
   }
 
-  return { boards, loading, error, createBoard };
+  // --- NEW: DELETE BOARD FUNCTION ---
+  async function deleteBoard(boardId: string) {
+    try {
+      const confirmDelete = window.confirm("Are you sure you want to delete this board? This action cannot be undone.");
+      if (!confirmDelete) return;
+
+      // 1. Delete from Supabase
+      const { error: deleteError } = await supabase!.from("boards").delete().eq("id", boardId);
+      if (deleteError) throw deleteError;
+
+      // 2. Optimistic UI Update (Instantly remove it from the screen)
+      setBoards((prev) => prev.filter((b) => b.id !== boardId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete board.");
+      alert("Error deleting board.");
+    }
+  }
+
+  // Make sure to add deleteBoard to the return statement!
+  return { boards, loading, error, createBoard, deleteBoard };
 }
 
 export function useBoard(boardId: string) {

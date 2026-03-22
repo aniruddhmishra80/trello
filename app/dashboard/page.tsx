@@ -3,6 +3,7 @@
 import Navbar from "@/components/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import {
   Card,
   CardDescription,
@@ -36,12 +37,18 @@ import { useState } from "react";
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const { createBoard, boards, error } = useBoards();
+  // 👇 INJECTED deleteBoard HERE 👇
+  const { createBoard, boards, error, deleteBoard } = useBoards();
   const router = useRouter();
   const { isFreeUser } = usePlan();
+  
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState<boolean>(false);
+
+  // 👇 ADDED NEW STATES FOR CREATE BOARD DIALOG 👇
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newBoardTitle, setNewBoardTitle] = useState("");
 
   const [filters, setFilters] = useState({
     search: "",
@@ -90,12 +97,23 @@ export default function DashboardPage() {
     });
   }
 
-  const handleCreateBoard = async () => {
+  // 👇 UPDATED: Handles clicking the "Create" button vs opening modal 👇
+  const handleCreateClick = () => {
     if (!canCreateBoard) {
       setShowUpgradeDialog(true);
       return;
     }
-    await createBoard({ title: "New Board" });
+    setIsCreateModalOpen(true);
+  };
+
+  // 👇 UPDATED: Submits the actual title to the database 👇
+  const submitNewBoard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBoardTitle.trim()) return;
+    
+    await createBoard({ title: newBoardTitle.trim() });
+    setNewBoardTitle("");
+    setIsCreateModalOpen(false);
   };
 
   if (error) {
@@ -201,7 +219,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Boards */}
+        {/* Boards Header */}
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-4 sm:space-y-0">
             <div>
@@ -243,12 +261,14 @@ export default function DashboardPage() {
                 Filter
               </Button>
 
-              <Button onClick={handleCreateBoard}>
+              {/* 👇 Triggers Create Logic 👇 */}
+              <Button onClick={handleCreateClick}>
                 <Plus />
                 Create Board
               </Button>
             </div>
           </div>
+          
           {/* Search Bar */}
           <div className="relative mb-4 sm:mb-6">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -268,18 +288,95 @@ export default function DashboardPage() {
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredBoards.map((board, key) => (
-                <Link href={`/boards/${board.id}`} key={key}>
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-                    <CardHeader className="pb-3">
+                <div key={key} className="relative group h-full flex flex-col">
+                  {/* 👇 The absolute Link makes the whole card clickable 👇 */}
+                  <Link href={`/boards/${board.id}`} className="absolute inset-0 z-10" />
+                  
+                  <Card className="hover:shadow-lg transition-shadow h-full flex flex-col relative overflow-hidden">
+                    
+                    {/* 👇 DELETE BUTTON (Z-INDEX 20 keeps it above the link) 👇 */}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0 transition-opacity"
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevents navigation
+                        deleteBoard(board.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+
+                    <CardHeader className="pb-3 relative z-0">
                       <div className="flex items-center justify-between">
-                        <div className={`w-4 h-4 ${board.color} rounded`} />
-                        <Badge className="text-xs" variant="secondary">
+                        <div className={`w-4 h-4 ${board.color || 'bg-blue-500'} rounded`} />
+                        <Badge className="text-xs mr-8" variant="secondary">
                           New
                         </Badge>
                       </div>
                     </CardHeader>
-                    <div className="p-4 sm:p-6">
-                      <CardTitle className="text-base sm:text-lg mb-2 group-hover:text-blue-600 transition-colors">
+                    <div className="p-4 sm:p-6 flex-1 flex flex-col relative z-0">
+                      <CardTitle className="text-base sm:text-lg mb-2 group-hover:text-blue-600 transition-colors pr-6">
+                        {board.title}
+                      </CardTitle>
+                      <CardDescription className="text-sm mb-4 flex-1">
+                        {board.description}
+                      </CardDescription>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-gray-500 space-y-1 sm:space-y-0 mt-auto">
+                        <span>
+                          Created{" "}
+                          {new Date(board.created_at).toLocaleDateString()}
+                        </span>
+                        <span>
+                          Updated{" "}
+                          {new Date(board.updated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              ))}
+
+              <Card className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group" onClick={handleCreateClick}>
+                <div className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[200px]">
+                  <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2" />
+                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">
+                    Create new board
+                  </p>
+                </div>
+              </Card>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredBoards.map((board, key) => (
+                <div key={key} className="relative group">
+                  <Link href={`/boards/${board.id}`} className="absolute inset-0 z-10" />
+                  
+                  <Card className="hover:shadow-lg transition-shadow relative overflow-hidden">
+                    
+                    {/* 👇 DELETE BUTTON FOR LIST VIEW 👇 */}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0 transition-opacity"
+                      onClick={(e) => {
+                        e.preventDefault(); 
+                        deleteBoard(board.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+
+                    <CardHeader className="pb-3 relative z-0">
+                      <div className="flex items-center justify-between">
+                        <div className={`w-4 h-4 ${board.color || 'bg-blue-500'} rounded`} />
+                        <Badge className="text-xs mr-8" variant="secondary">
+                          New
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <div className="p-4 sm:p-6 relative z-0">
+                      <CardTitle className="text-base sm:text-lg mb-2 group-hover:text-blue-600 transition-colors pr-8">
                         {board.title}
                       </CardTitle>
                       <CardDescription className="text-sm mb-4">
@@ -297,57 +394,11 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </Card>
-                </Link>
-              ))}
-
-              <Card className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group" onClick={handleCreateBoard}>
-                <div className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[200px]">
-                  <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2" />
-                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">
-                    Create new board
-                  </p>
-                </div>
-              </Card>
-            </div>
-          ) : (
-            <div>
-              {boards.map((board, key) => (
-                <div key={key} className={key > 0 ? "mt-4" : ""}>
-                  <Link href={`/boards/${board.id}`}>
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className={`w-4 h-4 ${board.color} rounded`} />
-                          <Badge className="text-xs" variant="secondary">
-                            New
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <div className="p-4 sm:p-6">
-                        <CardTitle className="text-base sm:text-lg mb-2 group-hover:text-blue-600 transition-colors">
-                          {board.title}
-                        </CardTitle>
-                        <CardDescription className="text-sm mb-4">
-                          {board.description}
-                        </CardDescription>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-gray-500 space-y-1 sm:space-y-0">
-                          <span>
-                            Created{" "}
-                            {new Date(board.created_at).toLocaleDateString()}
-                          </span>
-                          <span>
-                            Updated{" "}
-                            {new Date(board.updated_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
                 </div>
               ))}
 
-              <Card className="mt-4 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group" onClick={handleCreateBoard}>
-                <div className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[200px]">
+              <Card className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group" onClick={handleCreateClick}>
+                <div className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[120px]">
                   <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2" />
                   <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">
                     Create new board
@@ -358,6 +409,36 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      {/* 👇 NEW CREATE BOARD DIALOG 👇 */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create a new board</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitNewBoard} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Board Title <span className="text-red-500">*</span></Label>
+              <Input 
+                id="title" 
+                value={newBoardTitle} 
+                onChange={(e) => setNewBoardTitle(e.target.value)} 
+                placeholder="e.g. Marketing Campaign"
+                autoFocus
+                required 
+              />
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)} className="mr-2">
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+                Create
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Filter Dialog */}
       <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>

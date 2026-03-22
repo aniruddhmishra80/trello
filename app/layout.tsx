@@ -1,3 +1,4 @@
+import { CardModal } from "@/components/CardModal";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -30,7 +31,11 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
-          <SupabaseProvider>{children}</SupabaseProvider>
+          {/* SupabaseProvider wraps everything so the Modal can access the database */}
+          <SupabaseProvider>
+            <CardModal />
+            {children}
+          </SupabaseProvider>
         </body>
       </html>
     </ClerkProvider>

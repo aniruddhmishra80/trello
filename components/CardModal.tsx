@@ -41,6 +41,10 @@ export const CardModal = () => {
   const [attachLink, setAttachLink] = useState("");
   const [attachText, setAttachText] = useState("");
   const [newItemText, setNewItemText] = useState<{ [key: string]: string }>({});
+  
+  const [newLabelText, setNewLabelText] = useState("");
+  const [newChecklistText, setNewChecklistText] = useState("Checklist");
+  const [newMemberText, setNewMemberText] = useState("");
 
   useEffect(() => {
     if (isOpen && id) fetchCardData();
@@ -83,12 +87,7 @@ export const CardModal = () => {
   };
 
   const handleAddMember = () => {
-    const newMember = window.prompt("Enter member name/email:");
-    if (!newMember) return;
-    const currentMembers = card.assignee ? card.assignee.split(',').map((s: string) => s.trim()) : [];
-    if (!currentMembers.includes(newMember)) {
-      updateField('assignee', [...currentMembers, newMember].join(', '));
-    }
+    setActivePopover('members');
   };
 
   const handleRemoveMember = (memberToRemove: string) => {
@@ -97,8 +96,7 @@ export const CardModal = () => {
   };
 
   const handleAddLabel = () => {
-    const newLabel = window.prompt("Enter a new label (e.g., Bug, Urgent):");
-    if (newLabel) updateField('labels', [...card.labels, newLabel]);
+    setActivePopover('labels');
   };
 
   const handleAddAttachment = () => {
@@ -109,8 +107,7 @@ export const CardModal = () => {
   };
 
   const handleAddChecklist = () => {
-    const t = window.prompt("Checklist title:", "Checklist");
-    if (t) updateField('checklists', [...card.checklists, { id: Date.now().toString(), title: t, items: [] }]);
+    setActivePopover('checklist');
   };
 
   const handleAddChecklistItem = (checklistId: string) => {
@@ -135,7 +132,8 @@ export const CardModal = () => {
   const handleDelete = async () => {
     if (window.confirm("Delete this card permanently?")) {
       await supabase?.from('tasks').delete().eq('id', id);
-      onClose(); window.location.reload(); 
+      onClose(); 
+      window.dispatchEvent(new Event('card-updated'));
     }
   };
 
@@ -168,11 +166,11 @@ export const CardModal = () => {
       
       <div className="bg-[#22272b] text-[#b6c2cf] w-full max-w-[800px] rounded-xl shadow-2xl flex flex-col relative overflow-hidden min-h-[500px]">
         
-        {/* State Synchronization: Reloads the page on close so filters catch the new labels */}
+        {/* State Synchronization: Fires custom event to silently refresh board data */}
         <button 
           onClick={() => {
             onClose();
-            window.location.reload();
+            window.dispatchEvent(new Event('card-updated'));
           }} 
           className="absolute top-3 right-4 p-2 bg-black/40 hover:bg-black/60 rounded-full transition z-20"
         >
@@ -220,16 +218,62 @@ export const CardModal = () => {
               <div className="pl-9 flex flex-wrap gap-2">
                 
                 {/* RESTORED LABELS BUTTON */}
-                <button onClick={handleAddLabel} className="flex items-center gap-2 bg-[#a6c5e229] hover:bg-[#a6c5e23d] px-3 py-1.5 rounded-sm text-sm font-medium transition text-[#c7d1db]">
-                  <Tag className="w-4 h-4" /> Labels
-                </button>
+                <div className="relative">
+                  <button onClick={handleAddLabel} className="flex items-center gap-2 bg-[#a6c5e229] hover:bg-[#a6c5e23d] px-3 py-1.5 rounded-sm text-sm font-medium transition text-[#c7d1db]">
+                    <Tag className="w-4 h-4" /> Labels
+                  </button>
+                  {activePopover === 'labels' && (
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-[#282e33] rounded-lg shadow-2xl border border-[#3f464e] z-50 p-4">
+                      <div className="flex justify-between items-center mb-4 border-b border-[#3f464e] pb-2">
+                        <span className="font-semibold text-sm text-center flex-1 text-[#c7d1db]">Labels</span>
+                        <X className="w-4 h-4 cursor-pointer hover:text-white" onClick={() => setActivePopover(null)} />
+                      </div>
+                      <div className="border-t border-[#3f464e] pt-3">
+                        <label className="text-xs font-semibold text-[#c7d1db] mb-1 block">Label name</label>
+                        <input value={newLabelText} onChange={(e) => setNewLabelText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && newLabelText) { updateField('labels', [...(card.labels || []), newLabelText]); setNewLabelText(""); setActivePopover(null); } }} placeholder="e.g., Bug, Urgent" className="w-full bg-[#22272b] border border-[#3f464e] rounded p-2 text-sm focus:border-blue-500 mb-3 outline-none" autoFocus />
+                        <button onClick={() => { if (newLabelText) { updateField('labels', [...(card.labels || []), newLabelText]); setNewLabelText(""); setActivePopover(null); } }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm transition">Add Label</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-                <button onClick={handleAddChecklist} className="flex items-center gap-2 bg-[#a6c5e229] hover:bg-[#a6c5e23d] px-3 py-1.5 rounded-sm text-sm font-medium transition text-[#c7d1db]">
-                  <CheckSquare className="w-4 h-4" /> Checklist
-                </button>
-                <button onClick={handleAddMember} className="flex items-center gap-2 bg-[#a6c5e229] hover:bg-[#a6c5e23d] px-3 py-1.5 rounded-sm text-sm font-medium transition text-[#c7d1db]">
-                  <User className="w-4 h-4" /> Members
-                </button>
+                <div className="relative">
+                  <button onClick={handleAddChecklist} className="flex items-center gap-2 bg-[#a6c5e229] hover:bg-[#a6c5e23d] px-3 py-1.5 rounded-sm text-sm font-medium transition text-[#c7d1db]">
+                    <CheckSquare className="w-4 h-4" /> Checklist
+                  </button>
+                  {activePopover === 'checklist' && (
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-[#282e33] rounded-lg shadow-2xl border border-[#3f464e] z-50 p-4">
+                      <div className="flex justify-between items-center mb-4 border-b border-[#3f464e] pb-2">
+                        <span className="font-semibold text-sm text-center flex-1 text-[#c7d1db]">Checklist</span>
+                        <X className="w-4 h-4 cursor-pointer hover:text-white" onClick={() => setActivePopover(null)} />
+                      </div>
+                      <div className="border-t border-[#3f464e] pt-3">
+                        <label className="text-xs font-semibold text-[#c7d1db] mb-1 block">Title</label>
+                        <input value={newChecklistText} onChange={(e) => setNewChecklistText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && newChecklistText) { updateField('checklists', [...(card.checklists || []), { id: Date.now().toString(), title: newChecklistText, items: [] }]); setNewChecklistText("Checklist"); setActivePopover(null); } }} placeholder="Checklist" className="w-full bg-[#22272b] border border-[#3f464e] rounded p-2 text-sm focus:border-blue-500 mb-3 outline-none" autoFocus />
+                        <button onClick={() => { if (newChecklistText) { updateField('checklists', [...(card.checklists || []), { id: Date.now().toString(), title: newChecklistText, items: [] }]); setNewChecklistText("Checklist"); setActivePopover(null); } }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm transition">Add</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <button onClick={handleAddMember} className="flex items-center gap-2 bg-[#a6c5e229] hover:bg-[#a6c5e23d] px-3 py-1.5 rounded-sm text-sm font-medium transition text-[#c7d1db]">
+                    <User className="w-4 h-4" /> Members
+                  </button>
+                  {activePopover === 'members' && (
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-[#282e33] rounded-lg shadow-2xl border border-[#3f464e] z-50 p-4">
+                      <div className="flex justify-between items-center mb-4 border-b border-[#3f464e] pb-2">
+                        <span className="font-semibold text-sm text-center flex-1 text-[#c7d1db]">Members</span>
+                        <X className="w-4 h-4 cursor-pointer hover:text-white" onClick={() => setActivePopover(null)} />
+                      </div>
+                      <div className="border-t border-[#3f464e] pt-3">
+                        <label className="text-xs font-semibold text-[#c7d1db] mb-1 block">Member name/email</label>
+                        <input value={newMemberText} onChange={(e) => setNewMemberText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && newMemberText) { const currentMembers = card.assignee ? card.assignee.split(',').map((s: string) => s.trim()) : []; if (!currentMembers.includes(newMemberText)) { updateField('assignee', [...currentMembers, newMemberText].join(', ')); } setNewMemberText(""); setActivePopover(null); } }} placeholder="Name or email" className="w-full bg-[#22272b] border border-[#3f464e] rounded p-2 text-sm focus:border-blue-500 mb-3 outline-none" autoFocus />
+                        <button onClick={() => { if (newMemberText) { const currentMembers = card.assignee ? card.assignee.split(',').map((s: string) => s.trim()) : []; if (!currentMembers.includes(newMemberText)) { updateField('assignee', [...currentMembers, newMemberText].join(', ')); } setNewMemberText(""); setActivePopover(null); } }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm transition">Add Member</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 
                 {/* ATTACHMENT POPOVER */}
                 <div className="relative">

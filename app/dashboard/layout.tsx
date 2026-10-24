@@ -6,9 +6,18 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { has } = await auth();
-  const hasProPlan = has({ plan: "pro_user" });
-  const hasEnterprisePlan = has({ plan: "enterprise_user" });
+  let hasProPlan = false;
+  let hasEnterprisePlan = false;
+
+  try {
+    const { has } = await auth();
+    hasProPlan = has({ plan: "pro_user" });
+    hasEnterprisePlan = has({ plan: "enterprise_user" });
+  } catch {
+    // Clerk billing / plans may not be configured — default to free user
+    hasProPlan = false;
+    hasEnterprisePlan = false;
+  }
 
   return (
     <PlanProvider hasProPlan={hasProPlan} hasEnterprisePlan={hasEnterprisePlan}>

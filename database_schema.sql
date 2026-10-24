@@ -1,7 +1,4 @@
--- TASK 1: DATABASE SCHEMA EXPANSION
-
--- 1. Add `labels` and `due_date` to the existing `tickets` (cards) table.
--- Note: due_date might already exist based on some interfaces, but adding here as requested.
+-- DATABASE SCHEMA FOR CARD SECTION LIKE checklists , checklist_items , labels AND due_date
 ALTER TABLE tickets
 ADD COLUMN IF NOT EXISTS labels JSONB DEFAULT '[]'::jsonb,
 ADD COLUMN IF NOT EXISTS due_date TIMESTAMP WITH TIME ZONE;

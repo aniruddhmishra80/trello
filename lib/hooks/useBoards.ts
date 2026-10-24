@@ -16,12 +16,12 @@ export function useBoards() {
   const [error, setError] = useState<string | null>(null);
 
   const loadBoards = useCallback(async () => {
-    if (!user) return;
+    if (!user || !supabase) return;
 
     try {
       setLoading(true);
       setError(null);
-      const data = await boardServiceInstance.getBoards(supabase!, user.id);
+      const data = await boardServiceInstance.getBoards(supabase, user.id);
       setBoards(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load boards.");
@@ -31,10 +31,10 @@ export function useBoards() {
   }, [user, supabase]);
 
   useEffect(() => {
-    if (user) {
+    if (user && supabase) {
       loadBoards();
     }
-  }, [user, loadBoards]);
+  }, [user, supabase, loadBoards]);
 
   async function createBoard(boardData: {
     title: string;
@@ -111,6 +111,13 @@ export function useBoard(boardId: string) {
     if (boardId) {
       loadBoard();
     }
+
+    const handleCardUpdate = () => {
+      loadBoard();
+    };
+    
+    window.addEventListener('card-updated', handleCardUpdate);
+    return () => window.removeEventListener('card-updated', handleCardUpdate);
   }, [boardId, loadBoard]);
 
   async function updateBoard(boardId: string, updates: Partial<Board>) {

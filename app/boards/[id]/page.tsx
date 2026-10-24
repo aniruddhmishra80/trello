@@ -157,7 +157,7 @@ function CardContentUI({ card }: { card: any }) {
     </div>
   );
 }
-
+// drag inabled card inside a list
 function SortableCard({ card }: { card: CardModel }) {
   const cardModal = useCardModal();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
@@ -184,6 +184,8 @@ function SortableCard({ card }: { card: CardModel }) {
   );
 }
 
+
+// the ghost card under ur cursor while draggig
 function CardOverlay({ card }: { card: CardModel }) {
   const cardData = card as any;
   const hasCover = cardData.cover_color || cardData.cover_image;
@@ -198,7 +200,7 @@ function CardOverlay({ card }: { card: CardModel }) {
     </Card>
   );
 }
-
+// getting a board and state
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
   const { supabase } = useSupabase(); // For list deletion
@@ -207,7 +209,7 @@ export default function BoardPage() {
     board, lists, createRealCard, setLists, moveCard, createList, updateList, updateBoard
   } = useBoard(id as string);
 
-  const { sensors, activeTask, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnD(lists, setLists, moveCard);
+  const { sensors, activeCard, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnD(lists, setLists, moveCard);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -265,6 +267,7 @@ export default function BoardPage() {
   // --- DELETE LIST FUNCTION ---
   async function handleDeleteList(listId: string) {
     if (window.confirm("Are you sure you want to delete this list? All cards inside it will be permanently removed.")) {
+      if (!supabase) return;
       const { error } = await supabase.from('columns').delete().eq('id', listId);
       if (error) {
         alert("Failed to delete list: " + error.message);
@@ -383,7 +386,7 @@ export default function BoardPage() {
                 </Button>
               </div>
 
-              <DragOverlay>{activeTask ? <CardOverlay card={activeTask as CardModel} /> : null}</DragOverlay>
+              <DragOverlay>{activeCard ? <CardOverlay card={activeCard as CardModel} /> : null}</DragOverlay>
             </div>
           </DndContext>
         </main>
